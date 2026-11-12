@@ -1,0 +1,37 @@
+name: lab
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - name: probe
+        run: |
+          mkdir -p out
+          docker run --rm --platform linux/arm64 -v "$PWD:/w" -w /w ubuntu:22.04 bash -c '
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq strace file procps
+            nproc; free -m
+            readlink /proc/self/exe
+            chmod +x INJECT-GPT.sh
+            timeout -s KILL 90 strace -f -tt -s 400 -o /w/out/trace.txt ./INJECT-GPT.sh > /w/out/stdout.txt 2>&1
+            echo "rc=$?"
+            ls -la
+          ' || true
+          echo "--- stdout"
+          head -100 out/stdout.txt || true
+          echo "--- net"
+          grep -aE 'connect|socket|sendto|recvfrom|bind|getaddr' out/trace.txt | head -80 || true
+          echo "--- files"
+          grep -aE 'openat|memfd|execve|mprotect' out/trace.txt | head -60 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: out
+          path: out/
