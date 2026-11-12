@@ -16,8 +16,13 @@ jobs:
           sudo apt-get install -y -qq strace
           uname -m
           chmod +x INJECT-GPT.sh
-          timeout -s KILL 60 ./INJECT-GPT.sh < /dev/null > out/plain.txt 2>&1
+          set +e
+          file INJECT-GPT.sh
+          command -v timeout strace
+          ls -l INJECT-GPT.sh
+          ./INJECT-GPT.sh < /dev/null > out/plain.txt 2>&1
           echo "plain_rc=$?"
+          head -40 out/plain.txt
           timeout -s KILL 60 strace -f -tt -s 400 -o out/trace.txt ./INJECT-GPT.sh < /dev/null > out/stdout.txt 2>&1
           echo "trace_rc=$?"
           echo "--- plain"
