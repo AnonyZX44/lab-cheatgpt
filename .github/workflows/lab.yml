@@ -12,15 +12,20 @@ jobs:
       - name: probe
         run: |
           mkdir -p out
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq strace
           uname -m
-          free -m
           chmod +x INJECT-GPT.sh
-          timeout -s KILL 90 strace -f -tt -s 400 -o out/trace.txt ./INJECT-GPT.sh > out/stdout.txt 2>&1
-          echo "rc=$?"
+          timeout -s KILL 60 ./INJECT-GPT.sh < /dev/null > out/plain.txt 2>&1
+          echo "plain_rc=$?"
+          timeout -s KILL 60 strace -f -tt -s 400 -o out/trace.txt ./INJECT-GPT.sh < /dev/null > out/stdout.txt 2>&1
+          echo "trace_rc=$?"
+          echo "--- plain"
+          head -60 out/plain.txt || true
           echo "--- stdout"
-          head -120 out/stdout.txt || true
+          head -60 out/stdout.txt || true
           echo "--- net"
-          grep -aE 'connect|socket|sendto|recvfrom|bind' out/trace.txt | head -80 || true
+          grep -aE 'connect|socket|sendto|recvfrom|bind' out/trace.txt | head -60 || true
           echo "--- files"
           grep -aE 'openat|memfd|execve|mprotect' out/trace.txt | head -80 || true
       - uses: actions/upload-artifact@v4
